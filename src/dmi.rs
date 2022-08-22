@@ -2,7 +2,7 @@ use factorial::Factorial;
 use ndarray::{prelude::*, ViewRepr};
 use ndarray_linalg::{error::LinalgError, solve::Determinant};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum DMIError {
     Arithmetic,
     /// The values of answers must be integers in [0, C)
@@ -24,26 +24,20 @@ pub enum DMIError {
 pub trait DMI {
     // factorial(n) / (factorial(m) * factorial(n - m))
     fn comb(n: &usize, m: &usize) -> Result<f32, DMIError> {
-        println!("17");
-
         let factorial_n = Factorial::checked_factorial(n).ok_or(DMIError::CombingFactorialize)?;
-        println!("18");
 
         let factorial_mul_result = {
             let factorial_m =
                 Factorial::checked_factorial(m).ok_or(DMIError::CombingFactorialize)?;
-            println!("19");
 
             let factorial_n_minus_m =
                 Factorial::checked_factorial(&(n.checked_sub(*m).ok_or(DMIError::NLessThanM)?))
                     .ok_or(DMIError::CombingFactorialize)?;
-            println!("20");
 
             factorial_m
                 .checked_mul(factorial_n_minus_m)
                 .ok_or(DMIError::CombingMul)?
         };
-        println!("21");
 
         Ok(factorial_n
             .checked_div(factorial_mul_result)
@@ -124,12 +118,9 @@ pub trait DMI {
         choice_n: &usize,
         t1: ArrayBase<ViewRepr<&usize>, Dim<[usize; 2]>>,
         t2: ArrayBase<ViewRepr<&usize>, Dim<[usize; 2]>>,
-        // ) -> Vec<f32> {
     ) -> Result<Vec<f32>, DMIError> {
         let prelim_agents = (agent_n.checked_sub(1)).ok_or(DMIError::TooFewAgentsForPaymentCalc)?;
-
         let fact = Factorial::checked_factorial(choice_n).ok_or(DMIError::Factorialize)?;
-
         let raised = fact.checked_pow(2).ok_or(DMIError::Exponentiate)?;
 
         let mut norm_factor = prelim_agents
@@ -138,7 +129,7 @@ pub trait DMI {
 
         norm_factor *=
             Self::comb(&t1.shape()[0], choice_n)? * Self::comb(&t2.shape()[0], choice_n)?;
-        println!("16");
+            
         let mut payments = vec![];
         for i in 0..*agent_n {
             let mut p = 0_f32;

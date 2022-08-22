@@ -1,4 +1,4 @@
-use crate::dmi::DMI;
+use crate::dmi::{DMI, DMIError};
 use ndarray::{s, Array2, ArrayView2, Axis};
 use ndarray_linalg::generate::random;
 
@@ -8,8 +8,8 @@ impl DMI for DMIUser {}
 #[test]
 pub fn comb_works() {
     // let result = TestDmi::comb(&8, &4);
-    let result: f32 = <DMIUser as DMI>::comb(&8, &4);
-    assert_eq!(result, 70.);
+    let result: Result<_, _> = <DMIUser as DMI>::comb(&8, &4);
+    assert_eq!(result, Ok(70.));
 }
 
 #[test]
@@ -68,6 +68,24 @@ fn calculate_dmi_works() {
 
 #[test]
 fn calculate_payments_works() {
+    let agent_n = 2;
+    let choice_n = 3;
+    let half = agent_n / 2;
+
+    let answers = Array2::<usize>::zeros((4, 4));
+
+    let transposed = answers.t();
+    let view = ArrayView2::from(transposed);
+    let (a1, b1) = view.split_at(Axis(0), half);
+
+    let result = <DMIUser as DMI>::calculate_payments(&agent_n, &choice_n, a1, b1);
+
+    // Need to find good values to set - this test is NOT working
+    // assert_eq!(result, Ok(vec![0.]));
+}
+
+#[test]
+fn calculate_payments_errs_with_high_choice_n() {
     let agent_n = 4;
     let choice_n = 4;
     let half = agent_n / 2;
@@ -79,6 +97,8 @@ fn calculate_payments_works() {
     let (a1, b1) = view.split_at(Axis(0), half);
 
     let result = <DMIUser as DMI>::calculate_payments(&agent_n, &choice_n, a1, b1);
+
+    assert_eq!(result, Err(DMIError::NLessThanM));
 }
 
 #[test]
@@ -88,7 +108,13 @@ fn gets_dmi_inner() {
     let a2 = Array2::<usize>::zeros((1, 0));
     let b2 = Array2::<usize>::zeros((1, 0));
 
-    // let result = TestDmi::dmi_inner(a1, b1, a2, b2, 1);
+    let a1 = a1.slice(s![1, ..,]);
+    let b1 = b1.slice(s![1, ..,]);
+    let a2 = a2.slice(s![1, ..,]);
+    let b2 = b2.slice(s![1, ..,]);
+    let c = 4;
 
-    // assert_eq!(result, 42.);
+    // let result = TestDmi::dmi_inner(a1, b1, a2, b2, 1);
+    let result = <DMIUser as DMI>::dmi_inner(a1, b1, a2, b2, &c).unwrap();
+    assert_eq!(result, 42.);
 }
