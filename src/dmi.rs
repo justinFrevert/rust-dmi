@@ -11,6 +11,7 @@ pub enum DMIError {
     CombingFactorialize,
     CombingMul,
     Exponentiate,
+    LinalgError,
     NLessThanM,
     // At least one agent should have been engaged
     TooFewAgents,
@@ -19,6 +20,12 @@ pub enum DMIError {
     /// Only one agent or fewer given when calculating payments
     TooFewAgentsForPaymentCalc,
     Factorialize,
+}
+
+impl From<LinalgError> for DMIError {
+    fn from(err: LinalgError) -> DMIError {
+        DMIError::LinalgError
+    }
 }
 
 pub trait DMI {
@@ -51,7 +58,12 @@ pub trait DMI {
 
     // get "M"
     // a and b are equal length
-    fn get_mechanism<'a>(a: ArrayView1<usize>, b: ArrayView1<usize>, c: &usize) -> Array2<f32> {
+    // fn get_mechanism<'a>(a: ArrayView1<usize>, b: ArrayView1<usize>, c: &usize) -> Array2<f32> {
+    fn get_mechanism<'a>(
+        a: ArrayView1<usize>,
+        b: ArrayView1<usize>,
+        c: &usize,
+    ) -> Result<Array2<f32>, DMIError> {
         let mut mechanism = Array2::<usize>::zeros((*c, *c));
         for (x, y) in a.into_iter().zip(b.into_iter()) {
             if Self::check(&x, &c) && Self::check(&y, &c) {
@@ -59,12 +71,12 @@ pub trait DMI {
                     *v += 1;
                 }
             } else {
-                println!("Error: AnswerValsOutOfScope");
-                // Err(DMIError::AnswerValsOutOfScope)
+                // println!("Error: AnswerValsOutOfScope");
+                return Err(DMIError::AnswerValsOutOfScope);
             }
         }
         // Return it back to some floating point due to requirements in determinant calc. TODO to change everything to f32, but first some other things need to change
-        mechanism.map(|k| *k as f32)
+        Ok(mechanism.map(|k| *k as f32))
     }
 
     // aka dmi2 in source
@@ -75,13 +87,14 @@ pub trait DMI {
         b2: ArrayView1<usize>,
 
         c: &usize,
-    ) -> Result<f32, LinalgError> {
-        let m1 = Self::get_mechanism(a1, b1, c);
-        let m2 = Self::get_mechanism(a2, b2, c);
+    ) -> Result<f32, DMIError> {
+        let m1 = Self::get_mechanism(a1, b1, c)?;
+        let m2 = Self::get_mechanism(a2, b2, c)?;
         Ok(m1.det()? * m2.det()?)
     }
 
     // Do the actual DMI calculation
+    // Note: the size of the returned vector is larger than the same calculation done in the python version
     fn calculate_dmi(answers: Array2<usize>, choice_n: usize) -> Result<Vec<f32>, DMIError> {
         let answers_shape = answers.shape();
         let agent_n = answers_shape[0];
@@ -129,7 +142,7 @@ pub trait DMI {
 
         norm_factor *=
             Self::comb(&t1.shape()[0], choice_n)? * Self::comb(&t2.shape()[0], choice_n)?;
-            
+
         let mut payments = vec![];
         for i in 0..*agent_n {
             let mut p = 0_f32;
