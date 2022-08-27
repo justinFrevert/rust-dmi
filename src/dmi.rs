@@ -13,6 +13,7 @@ pub enum DMIError {
     Exponentiate,
     LinalgError,
     NLessThanM,
+    PaymentNLessThanM,
     // At least one agent should have been engaged
     TooFewAgents,
     /// Tasks must be greater than or equal to twice the choice count
@@ -23,7 +24,7 @@ pub enum DMIError {
 }
 
 impl From<LinalgError> for DMIError {
-    fn from(err: LinalgError) -> DMIError {
+    fn from(_: LinalgError) -> DMIError {
         DMIError::LinalgError
     }
 }
@@ -51,14 +52,13 @@ pub trait DMI {
             .ok_or(DMIError::Arithmetic)? as f32)
     }
 
-    // In source it asks that it should be i64... consider changing later.
+    // In source it is i64... consider changing later.
     fn check(x: &usize, c: &usize) -> bool {
         &0 <= x && x < c
     }
 
     // get "M"
     // a and b are equal length
-    // fn get_mechanism<'a>(a: ArrayView1<usize>, b: ArrayView1<usize>, c: &usize) -> Array2<f32> {
     fn get_mechanism<'a>(
         a: ArrayView1<usize>,
         b: ArrayView1<usize>,
@@ -132,6 +132,12 @@ pub trait DMI {
         t1: ArrayBase<ViewRepr<&usize>, Dim<[usize; 2]>>,
         t2: ArrayBase<ViewRepr<&usize>, Dim<[usize; 2]>>,
     ) -> Result<Vec<f32>, DMIError> {
+        if t1.shape()[0].saturating_sub(*choice_n) == 0
+            || t2.shape()[0].saturating_sub(*choice_n) == 0
+        {
+            return Err(DMIError::PaymentNLessThanM);
+        }
+
         let prelim_agents = (agent_n.checked_sub(1)).ok_or(DMIError::TooFewAgentsForPaymentCalc)?;
         let fact = Factorial::checked_factorial(choice_n).ok_or(DMIError::Factorialize)?;
         let raised = fact.checked_pow(2).ok_or(DMIError::Exponentiate)?;

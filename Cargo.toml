@@ -14,3 +14,5 @@ factorial = "0.2.1"
 ndarray = { version = "0.15.6", features = ["blas"] }
 # ndarray = { version = "0.5", features = ["blas"] }
 ndarray-linalg = { version = "0.14.1", features = ["openblas-system"]}
+rand = "0.8.5"
+shuffle = "0.1.7"
