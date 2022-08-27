@@ -8,7 +8,7 @@ pub enum DMIError {
     /// The values of answers must be integers in [0, C)
     AnswerValsOutOfScope,
     // More specific error for differentiating different errors internally
-    CombingFactorialize,
+    CombingFactorialCalc,
     CombingMul,
     Exponentiate,
     LinalgError,
@@ -20,7 +20,7 @@ pub enum DMIError {
     TooFewTasks,
     /// Only one agent or fewer given when calculating payments
     TooFewAgentsForPaymentCalc,
-    Factorialize,
+    FactorialCalc,
 }
 
 impl From<LinalgError> for DMIError {
@@ -32,15 +32,15 @@ impl From<LinalgError> for DMIError {
 pub trait DMI {
     // factorial(n) / (factorial(m) * factorial(n - m))
     fn comb(n: &usize, m: &usize) -> Result<f32, DMIError> {
-        let factorial_n = Factorial::checked_factorial(n).ok_or(DMIError::CombingFactorialize)?;
+        let factorial_n = Factorial::checked_factorial(n).ok_or(DMIError::CombingFactorialCalc)?;
 
         let factorial_mul_result = {
             let factorial_m =
-                Factorial::checked_factorial(m).ok_or(DMIError::CombingFactorialize)?;
+                Factorial::checked_factorial(m).ok_or(DMIError::CombingFactorialCalc)?;
 
             let factorial_n_minus_m =
                 Factorial::checked_factorial(&(n.checked_sub(*m).ok_or(DMIError::NLessThanM)?))
-                    .ok_or(DMIError::CombingFactorialize)?;
+                    .ok_or(DMIError::CombingFactorialCalc)?;
 
             factorial_m
                 .checked_mul(factorial_n_minus_m)
@@ -139,7 +139,7 @@ pub trait DMI {
         }
 
         let prelim_agents = (agent_n.checked_sub(1)).ok_or(DMIError::TooFewAgentsForPaymentCalc)?;
-        let fact = Factorial::checked_factorial(choice_n).ok_or(DMIError::Factorialize)?;
+        let fact = Factorial::checked_factorial(choice_n).ok_or(DMIError::FactorialCalc)?;
         let raised = fact.checked_pow(2).ok_or(DMIError::Exponentiate)?;
 
         let mut norm_factor = prelim_agents
