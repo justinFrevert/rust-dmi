@@ -61,18 +61,17 @@ pub trait DMI {
         b: ArrayView1<usize>,
         c: &usize,
     ) -> Result<Array2<f32>, DMIError> {
-        let mut mechanism = Array2::<usize>::zeros((*c, *c));
+        let mut mechanism = Array2::<f32>::zeros((*c, *c));
         for (x, y) in a.into_iter().zip(b.into_iter()) {
             if Self::check_answers(&x, &c) && Self::check_answers(&y, &c) {
                 if let Some(v) = mechanism.get_mut((*x, *y)) {
-                    *v += 1;
+                    *v += 1.;
                 }
             } else {
                 return Err(DMIError::AnswerValsOutOfScope);
             }
         }
-        // Return it back to some floating point due to requirements in determinant calc. TODO to change everything to f32, but first some other things need to change
-        Ok(mechanism.map(|k| *k as f32))
+        Ok(mechanism)
     }
 
     // aka dmi2 in source
