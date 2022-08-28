@@ -5,18 +5,17 @@ struct DMIUser;
 impl DMI for DMIUser {}
 
 #[test]
-pub fn comb_works() {
-    let result: Result<_, _> = <DMIUser as DMI>::comb(&8, &4);
+pub fn calculate_factorials_works() {
+    let result: Result<_, _> = <DMIUser as DMI>::calculate_factorials(&8, &4);
     assert_eq!(result, Ok(70.));
 }
 
 #[test]
 fn check_works() {
     let x = 0;
-    let y = 0;
     let c = 4;
 
-    let result = <DMIUser as DMI>::check(&x, &c);
+    let result = <DMIUser as DMI>::check_answers(&x, &c);
     assert_eq!(result, true);
 }
 
@@ -39,7 +38,7 @@ fn get_mechanism_works() {
 }
 
 #[test]
-fn dmi_inner_works() {
+fn get_mutual_information_works() {
     let a1 = Array2::<usize>::zeros((4, 4));
     let b1 = Array2::<usize>::zeros((4, 4));
     let a2 = Array2::<usize>::zeros((4, 4));
@@ -51,14 +50,14 @@ fn dmi_inner_works() {
     let b2 = b2.slice(s![1, ..,]);
     let c = 4;
 
-    let result = <DMIUser as DMI>::dmi_inner(a1, b1, a2, b2, &c).unwrap();
+    let result = <DMIUser as DMI>::get_mutual_information(a1, b1, a2, b2, &c).unwrap();
 
     let expected = 0.;
     assert_eq!(result, expected);
 }
 
 #[test]
-fn dmi_inner_works_2() {
+fn get_mutual_information_works_2() {
     let a1 = Array2::<usize>::eye(4);
     let b1 = Array2::<usize>::eye(4);
     let a2 = Array2::<usize>::eye(4);
@@ -70,14 +69,14 @@ fn dmi_inner_works_2() {
     let b2 = b2.slice(s![1, ..,]);
     let c = 4;
 
-    let result = <DMIUser as DMI>::dmi_inner(a1, b1, a2, b2, &c).unwrap();
+    let result = <DMIUser as DMI>::get_mutual_information(a1, b1, a2, b2, &c).unwrap();
 
     let expected = 0.;
     assert_eq!(result, expected);
 }
 
 #[test]
-fn dmi_inner_works_3() {
+fn get_mutual_information_works_3() {
     let a1 = Array2::<usize>::from_elem((4, 4), 5);
     let b1 = Array2::<usize>::eye(4);
     let a2 = Array2::<usize>::zeros((4, 4));
@@ -89,37 +88,37 @@ fn dmi_inner_works_3() {
     let b2 = b2.slice(s![2, ..,]);
     let c = 8;
 
-    let result = <DMIUser as DMI>::dmi_inner(a1, b1, a2, b2, &c).unwrap();
+    let result = <DMIUser as DMI>::get_mutual_information(a1, b1, a2, b2, &c).unwrap();
 
     let expected = 0.;
     assert_eq!(result, expected);
 }
 
 #[test]
-fn calculate_dmi_works() {
+fn do_dmi_works() {
     let a1 = Array2::<usize>::zeros((4, 4));
 
-    let result = <DMIUser as DMI>::calculate_dmi(a1, 2).unwrap();
+    let result = <DMIUser as DMI>::do_dmi(a1, 2).unwrap();
 
     let expected: Vec<f32> = vec![0.; 12];
     assert_eq!(expected, result)
 }
 
 #[test]
-fn calculate_dmi_works_2() {
+fn do_dmi_works_2() {
     let a1 = Array2::<usize>::from_elem((4, 4), 1);
 
-    let result = <DMIUser as DMI>::calculate_dmi(a1, 2).unwrap();
+    let result = <DMIUser as DMI>::do_dmi(a1, 2).unwrap();
 
     let expected: Vec<f32> = vec![0.; 12];
     assert_eq!(expected, result)
 }
 
 #[test]
-fn calculate_dmi_works_3() {
+fn do_dmi_works_3() {
     let a1 = Array2::<usize>::eye(5);
 
-    let result = <DMIUser as DMI>::calculate_dmi(a1, 2).unwrap();
+    let result = <DMIUser as DMI>::do_dmi(a1, 2).unwrap();
 
     let expected: Vec<f32> = vec![0.; 20];
     assert_eq!(expected, result)
@@ -158,5 +157,5 @@ fn calculate_payments_errs_with_high_choice_n() {
 
     let result = <DMIUser as DMI>::calculate_payments(&agent_n, &choice_n, a1, b1);
 
-    assert_eq!(result, Err(DMIError::PaymentNLessThanM));
+    assert_eq!(result, Err(DMIError::NLessThanM));
 }

@@ -8,8 +8,8 @@ pub enum DMIError {
     /// The values of answers must be integers in [0, C)
     AnswerValsOutOfScope,
     // More specific error for differentiating different errors internally
-    CombingFactorialCalc,
-    CombingMul,
+    FactorialCalc,
+    FactorialMulCalc,
     Exponentiate,
     LinalgError,
     NLessThanM,
@@ -20,7 +20,7 @@ pub enum DMIError {
     TooFewTasks,
     /// Only one agent or fewer given when calculating payments
     TooFewAgentsForPaymentCalc,
-    FactorialCalc,
+    PaymentFactorialCalc,
 }
 
 impl From<LinalgError> for DMIError {
@@ -31,20 +31,18 @@ impl From<LinalgError> for DMIError {
 
 pub trait DMI {
     // factorial(n) / (factorial(m) * factorial(n - m))
-    fn comb(n: &usize, m: &usize) -> Result<f32, DMIError> {
-        let factorial_n = Factorial::checked_factorial(n).ok_or(DMIError::CombingFactorialCalc)?;
-
+    fn calculate_factorials(n: &usize, m: &usize) -> Result<f32, DMIError> {
+        let factorial_n = Factorial::checked_factorial(n).ok_or(DMIError::FactorialCalc)?;
         let factorial_mul_result = {
-            let factorial_m =
-                Factorial::checked_factorial(m).ok_or(DMIError::CombingFactorialCalc)?;
+            let factorial_m = Factorial::checked_factorial(m).ok_or(DMIError::FactorialCalc)?;
 
             let factorial_n_minus_m =
                 Factorial::checked_factorial(&(n.checked_sub(*m).ok_or(DMIError::NLessThanM)?))
-                    .ok_or(DMIError::CombingFactorialCalc)?;
+                    .ok_or(DMIError::FactorialCalc)?;
 
             factorial_m
                 .checked_mul(factorial_n_minus_m)
-                .ok_or(DMIError::CombingMul)?
+                .ok_or(DMIError::FactorialMulCalc)?
         };
 
         Ok(factorial_n
@@ -52,12 +50,11 @@ pub trait DMI {
             .ok_or(DMIError::Arithmetic)? as f32)
     }
 
-    // In source it is i64... consider changing later.
-    fn check(x: &usize, c: &usize) -> bool {
+    fn check_answers(x: &usize, c: &usize) -> bool {
         &0 <= x && x < c
     }
 
-    // get "M"
+    // get M mechanism
     // a and b are equal length
     fn get_mechanism<'a>(
         a: ArrayView1<usize>,
@@ -66,12 +63,11 @@ pub trait DMI {
     ) -> Result<Array2<f32>, DMIError> {
         let mut mechanism = Array2::<usize>::zeros((*c, *c));
         for (x, y) in a.into_iter().zip(b.into_iter()) {
-            if Self::check(&x, &c) && Self::check(&y, &c) {
+            if Self::check_answers(&x, &c) && Self::check_answers(&y, &c) {
                 if let Some(v) = mechanism.get_mut((*x, *y)) {
                     *v += 1;
                 }
             } else {
-                // println!("Error: AnswerValsOutOfScope");
                 return Err(DMIError::AnswerValsOutOfScope);
             }
         }
@@ -80,12 +76,12 @@ pub trait DMI {
     }
 
     // aka dmi2 in source
-    fn dmi_inner(
+    // DMI(X; Y ) = ∣ det(UX,Y )∣.
+    fn get_mutual_information(
         a1: ArrayView1<usize>,
         b1: ArrayView1<usize>,
         a2: ArrayView1<usize>,
         b2: ArrayView1<usize>,
-
         c: &usize,
     ) -> Result<f32, DMIError> {
         let m1 = Self::get_mechanism(a1, b1, c)?;
@@ -94,8 +90,8 @@ pub trait DMI {
     }
 
     // Do the actual DMI calculation
-    // Note: the size of the returned vector is larger than the same calculation done in the python version
-    fn calculate_dmi(answers: Array2<usize>, choice_n: usize) -> Result<Vec<f32>, DMIError> {
+    // Note: the size of the returned vector is predictably larger than the same calculation done in the python version
+    fn do_dmi(answers: Array2<usize>, choice_n: usize) -> Result<Vec<f32>, DMIError> {
         let answers_shape = answers.shape();
         let agent_n = answers_shape[0];
         let task_n = answers_shape[1];
@@ -108,6 +104,7 @@ pub trait DMI {
             return Err(DMIError::TooFewAgents);
         }
 
+        // Arbitrarily split answers
         let transposed = answers.t();
         let view = ArrayView2::from(transposed);
         // TODO: shuffle all answers here
@@ -132,22 +129,16 @@ pub trait DMI {
         t1: ArrayBase<ViewRepr<&usize>, Dim<[usize; 2]>>,
         t2: ArrayBase<ViewRepr<&usize>, Dim<[usize; 2]>>,
     ) -> Result<Vec<f32>, DMIError> {
-        if t1.shape()[0].saturating_sub(*choice_n) == 0
-            || t2.shape()[0].saturating_sub(*choice_n) == 0
-        {
-            return Err(DMIError::PaymentNLessThanM);
-        }
-
         let prelim_agents = (agent_n.checked_sub(1)).ok_or(DMIError::TooFewAgentsForPaymentCalc)?;
-        let fact = Factorial::checked_factorial(choice_n).ok_or(DMIError::FactorialCalc)?;
+        let fact = Factorial::checked_factorial(choice_n).ok_or(DMIError::PaymentFactorialCalc)?;
         let raised = fact.checked_pow(2).ok_or(DMIError::Exponentiate)?;
 
         let mut norm_factor = prelim_agents
             .checked_mul(raised)
             .ok_or(DMIError::Arithmetic)? as f32;
 
-        norm_factor *=
-            Self::comb(&t1.shape()[0], choice_n)? * Self::comb(&t2.shape()[0], choice_n)?;
+        norm_factor *= Self::calculate_factorials(&t1.shape()[0], choice_n)?
+            * Self::calculate_factorials(&t2.shape()[0], choice_n)?;
 
         let mut payments = vec![];
         for i in 0..*agent_n {
@@ -157,7 +148,7 @@ pub trait DMI {
                     continue;
                 }
 
-                p += Self::dmi_inner(
+                p += Self::get_mutual_information(
                     t1.slice(s![i, ..,]),
                     t1.slice(s![j, ..,]),
                     t2.slice(s![i, ..,]),
